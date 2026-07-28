@@ -40,9 +40,9 @@ $env:PYTHONIOENCODING = "utf-8"
 .venv\Scripts\python.exe tools\migrate_page.py --url "<confluence-page-url>" --category "Category path & ID"
 ```
 ### Doc360 Project & Category ID
-*Category Name should include path and category ID. For example "document/kb/view/e1234567-e123-123f-ab12-e12cf3aba567"
-*The path is after the project ID/document/workspace_name, to get path select the destination category. The URL format is "https://portal.document360.io/<PROJECT_ID>/document/<WORKSPACE_NAME>/view/>CATEGORY_ID>"
-*If you only put the name and it's not a top level category, it will create a new category with that name.
+* Category Name should include path and category ID. For example "document/kb/view/e1234567-e123-123f-ab12-e12cf3aba567"
+* The path is after the project ID/document/workspace_name, to get path select the destination category. The URL format is "https://portal.document360.io/<PROJECT_ID>/document/<WORKSPACE_NAME>/view/>CATEGORY_ID>"
+* If you only put the name and it's not a top level category, it will create a new category with that name.
 
 `--page_id <id>` works instead of `--url` if you have the numeric
 Confluence page id handy. `--category` is optional - it falls back to
