@@ -7,10 +7,13 @@ Usage:
 Exactly one of --url or --page_id is required. --page_id skips URL parsing
 entirely and fetches the page directly by its numeric Confluence content id.
 
---category accepts either a '/'-separated category name path (eg.
-"Parent/Child" - missing segments are created), or a Document360 category
-id (a raw UUID, or a full portal URL/path that ends in one, eg.
-".../document/kb/category/674c0b3e-e66e-4773-b4a8-ddec5e1b98df").
+--category picks both the destination workspace and category, as either:
+- a Document360 category id (a raw UUID, or a full portal URL/path that
+  ends in one, eg. ".../document/kb/category/674c0b3e-e66e-4773-b4a8-ddec5e1b98df");
+  the article goes to whichever workspace that category belongs to, or
+- a '/'-separated "Workspace/Parent/Child" name path, where the first
+  segment is a workspace name or URL slug (eg. "KBs & Tutorials/Staging");
+  missing category segments are created.
 
 If --category is omitted, DOC360_DEFAULT_CATEGORY_PATH from .env is used;
 if that's also unset, the category is asked for interactively. The
@@ -43,7 +46,10 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--url", help="Confluence page URL")
     source.add_argument("--page_id", help="Confluence page id (skips URL parsing)")
-    parser.add_argument("--category", help="Destination Document360 category name path or id")
+    parser.add_argument(
+        "--category",
+        help="Destination Document360 category id/portal URL, or 'Workspace/Category/...' name path",
+    )
     parser.add_argument(
         "--drive-folder",
         help=f"Leaf Drive folder name for images, nested under {DRIVE_IMAGE_ROOT}/ "
@@ -59,7 +65,7 @@ def main():
     if not category_value:
         category_value = input(
             "No destination category provided. Enter the Document360 category "
-            "(name path like 'Parent/Child', or a category id) to file this "
+            "(category id/portal URL, or name path like 'Workspace/Parent/Child') to file this "
             "article under - also used as the Drive folder name for its images: "
         ).strip()
         if not category_value:
@@ -72,8 +78,12 @@ def main():
     print(f"Resolving Document360 category '{category_value}'...")
     category = doc360.resolve_category(category_value)
     category_name = category["name"]
+    workspace_id = category["workspace_id"]
+    workspace_name = next(
+        (w["name"] for w in doc360.list_workspaces() if w["id"] == workspace_id), workspace_id
+    )
     drive_folder_name = args.drive_folder or category_name
-    print(f"Resolved category: '{category_name}' (id: {category['id']})")
+    print(f"Resolved category: '{category_name}' (id: {category['id']}) in workspace '{workspace_name}'")
 
     if args.page_id:
         page_id = args.page_id
@@ -113,12 +123,16 @@ def main():
 
     print("Creating Document360 article...")
     article = doc360.create_article(
-        title=page["title"], category_id=category["id"], html_content=html_content
+        title=page["title"],
+        category_id=category["id"],
+        workspace_id=workspace_id,
+        html_content=html_content,
     )
 
     print()
     print("=== Migration complete ===")
     print(f"Article: {article.get('title')} (id: {article.get('id')})")
+    print(f"Workspace: {workspace_name} (id: {workspace_id})")
     print(f"Category: {category_name} (id: {category['id']})")
     print(f"Images uploaded: {len(image_map)}/{len(referenced)}")
     if warnings:

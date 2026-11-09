@@ -27,8 +27,8 @@ CONFLUENCE_BASE_URL=https://<site>.atlassian.net/wiki
 CONFLUENCE_EMAIL=<email>
 CONFLUENCE_API_TOKEN=<Atlassian API token>
 
-DOC360_API_KEY=<Document360 API token>
-DOCUMENT360_PROJECT_ID=<target Document360 workspace/project version id>
+DOC360_API_KEY_V3=<Document360 v3 API key (d360_sk_...)>
+DOCUMENT360_PROJECT_ID=<Document360 v3 project id - optional if the key sees only one project>
 DOCUMENT360_USER_ID=<team member id to attribute articles to>
 DOC360_DEFAULT_CATEGORY_PATH=<optional - default destination category>
 ```
@@ -39,16 +39,16 @@ DOC360_DEFAULT_CATEGORY_PATH=<optional - default destination category>
 $env:PYTHONIOENCODING = "utf-8"
 .venv\Scripts\python.exe tools\migrate_page.py --url "<confluence-page-url>" --category "Category path & ID"
 ```
-### Doc360 Project & Category ID
-*Category Name should include path and category ID. For example "document/kb/view/e1234567-e123-123f-ab12-e12cf3aba567"
-*The path is after the project ID/document/workspace_name, to get path select the destination category. The URL format is "https://portal.document360.io/<PROJECT_ID>/document/<WORKSPACE_NAME>/view/>CATEGORY_ID>"
-*If you only put the name and it's not a top level category, it will create a new category with that name.
+### Choosing the workspace and category
+`--category` selects both the destination workspace and category - no
+workspace is configured in `.env`. Use either:
+* **A category id or portal URL** (recommended) - select the destination category in the portal and copy its URL, eg. `"https://portal.document360.io/<PROJECT_ID>/document/<WORKSPACE_SLUG>/category/<CATEGORY_ID>"` or just the `document/kb/category/<CATEGORY_ID>` part. The article goes to whichever workspace that category is in.
+* **A name path** starting with the workspace name or URL slug, eg. `"KBs & Tutorials/Staging"` or `"kb/Staging"`. Missing category segments are created, so check spelling.
 
 `--page_id <id>` works instead of `--url` if you have the numeric
 Confluence page id handy. `--category` is optional - it falls back to
 `DOC360_DEFAULT_CATEGORY_PATH` in `.env`, then prompts interactively.
-Categories support `/`-separated nesting (`Parent/Child`) or a raw
-category id/portal URL. Images are uploaded to the Document360 Drive
+Images are uploaded to the Document360 Drive
 under `Images/Documentation/<category>`.
 
 Run `tools\migrate_page.py --help` for the full option list.

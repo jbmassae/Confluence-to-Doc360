@@ -141,23 +141,73 @@ CONFLUENCE_BASE_URL=https://<site>.atlassian.net/wiki
 CONFLUENCE_EMAIL=<email>
 CONFLUENCE_API_TOKEN=<Atlassian API token>
 
-DOC360_API_KEY=<Document360 API token>
-DOCUMENT360_PROJECT_ID=<target workspace/project version id>
+DOC360_API_KEY_V3=<Document360 v3 API key, d360_sk_...>
+DOCUMENT360_PROJECT_ID=<v3 project id - optional if the key sees only one project>
 DOCUMENT360_USER_ID=<team member id to attribute articles to>
 DOC360_DEFAULT_CATEGORY_PATH=<optional - default --category value; see migrate_page.py --help>
+DOC360_API_BASE=<optional - region is auto-detected; forces eg. https://apihub.us.document360.io/v3>
 ```
 
-`DOCUMENT360_PROJECT_ID` and `DOCUMENT360_USER_ID` are the current variable
-names (`doc360_client.py` also still accepts the older `DOC360_PROJECT_VERSION_ID`
-/ `DOC360_USER_ID` names as a fallback if the new ones aren't set - the newer
-names take priority when both are present). `DOCUMENT360_USER_ID` is
-otherwise auto-picked from the first result of `GET /v2/teams` if omitted,
-which is unlikely to be the account you want articles attributed to - set
-it explicitly.
+**Migrated to the v3 API (2026-10-29).** v3 keys are created under
+Settings > Knowledge base portal > API keys (*not* the v1/v2 "API tokens"
+screen - a v2 token is rejected by v3 and vice versa) and sent as an
+`X-API-Key` header. Every v3 path is scoped to `/v3/projects/{project_id}`;
+`project_id` is the whole knowledge base (VAST Data =
+`726fb2d3-253d-48b7-a67b-bcf45100fafc`) and is auto-discovered from
+`GET /v3/projects` when the key sees exactly one project (otherwise set
+`DOCUMENT360_PROJECT_ID` or `DOCUMENT360_V3_PROJECT_ID` to it). What v2
+called a *project version* is a v3 *workspace* with the same id. The old
+`DOC360_API_KEY` is no longer read.
 
-To find `DOCUMENT360_PROJECT_ID`, call `GET /v2/ProjectVersions` - the
-response lists every workspace with its `id`, `version_code_name`, and
-whether `is_main_version` is true.
+**The workspace is chosen per run by `--category`, never configured in
+`.env` (instruction 2026-11-09 - the tool is used across multiple
+workspaces).** A category id / portal URL resolves to whichever workspace
+the category is in (`GET /categories/{id}` returns `workspace_id`); a name
+path must start with the workspace name or URL slug
+(`"KBs & Tutorials/Staging"` or `"kb/Staging"`). `resolve_category` returns
+the category with `workspace_id` set and `migrate_page.py` passes it to
+`create_article`. An old-style `DOCUMENT360_PROJECT_ID` that holds a
+workspace id (not a v3 project id) is simply ignored.
+
+`DOCUMENT360_USER_ID` (or the older `DOC360_USER_ID`) is
+otherwise auto-picked from the first result of `GET /v3/projects/{id}/users` if
+omitted, which is unlikely to be the account you want articles attributed to -
+set it explicitly. v3 requires `user_id` on category/article creates made with
+an API key.
+
+**Regions and project vs. workspace ids (lesson 2026-11-09, "New US Docs
+Project"):** v3 is served per region (EU `apihub.`, US `apihub.us.`, CA
+`apihub.ca.document360.io`) and a key returns a bare, empty-bodied `401` on
+any host but its own project's - the US project's key failed with
+`401 Unauthorized for url: https://apihub.document360.io/v3/projects`. The
+client now tries each host in turn unless `DOC360_API_BASE` is set. The US
+project is "VAST Data Documentation" (`89b91113-...`); its Staging category
+(`580cbc0d-...`) is in the "KBs & Tutorials" workspace (slug `kb`).
+- **Portal URLs contain two ids (fixed 2026-11-09):** a full
+  `portal.document360.io/<project_id>/document/<ws>/category/<category_id>`
+  URL was resolved using the *first* UUID (the project id) and 404'd;
+  `resolve_category` now uses the last one.
+
+v3 behavior differences the client handles:
+- List endpoints paginate at 25 items (`pagination.has_more`); `_get_all`
+  walks every page. The v2 client never paged.
+- Errors are RFC 7807 `problem+json` with a readable `detail`/`errors`;
+  `_unwrap` raises `Doc360Error` with that text instead of a bare HTTPError.
+- Drive upload is `POST /drive/folders/{folder_id}/files` with a single
+  multipart field named `file` (the spec omits the name; confirmed via the
+  422 "The file field is required"). User id is no longer a parameter.
+- Drive folder create takes `name` but returns `id`/`title` - the v2
+  `media_folder_id` quirk below is gone.
+- Article `content_type` is a string (`"wysiwyg"`); v2's `editor_version`
+  field no longer exists. As with v2, the portal still downgrades it - a
+  `"wysiwyg"` create reads back as `content_type: "block"` (first v3 test
+  migration, page 5787975729, 2026-10-29), with the HTML stored intact.
+- The workspace category tree (`GET /workspaces/{id}/categories`) omits
+  `workspace_id` on each category; `find_or_create_category_path` adds it.
+
+To list workspaces (name, slug, id), call `GET /v3/projects/{project_id}/workspaces`
+or `Doc360Client().list_workspaces()`; an unknown workspace in a name path
+also prints them.
 
 ## Setup
 ```
