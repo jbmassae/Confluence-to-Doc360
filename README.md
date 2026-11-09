@@ -27,8 +27,8 @@ CONFLUENCE_BASE_URL=https://<site>.atlassian.net/wiki
 CONFLUENCE_EMAIL=<email>
 CONFLUENCE_API_TOKEN=<Atlassian API token>
 
-DOC360_API_KEY=<Document360 API token>
-DOCUMENT360_PROJECT_ID=<target Document360 workspace/project version id>
+DOC360_API_KEY_V3=<Document360 v3 API key (d360_sk_...)>
+DOCUMENT360_PROJECT_ID=<Document360 v3 project id - optional if the key sees only one project>
 DOCUMENT360_USER_ID=<team member id to attribute articles to>
 DOC360_DEFAULT_CATEGORY_PATH=<optional - default destination category>
 ```
@@ -47,8 +47,7 @@ $env:PYTHONIOENCODING = "utf-8"
 `--page_id <id>` works instead of `--url` if you have the numeric
 Confluence page id handy. `--category` is optional - it falls back to
 `DOC360_DEFAULT_CATEGORY_PATH` in `.env`, then prompts interactively.
-Categories support `/`-separated nesting (`Parent/Child`) or a raw
-category id/portal URL. Images are uploaded to the Document360 Drive
+Images are uploaded to the Document360 Drive
 under `Images/Documentation/<category>`.
 
 Run `tools\migrate_page.py --help` for the full option list.
